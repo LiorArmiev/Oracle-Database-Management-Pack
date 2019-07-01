@@ -1,0 +1,355 @@
+﻿<ManagementPackFragment SchemaVersion="2.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Presentation>
+    <Views>
+      <View ID="View_LinuxServers" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Server" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Oracle.Linux.Server-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Server Name</Name>
+            <Id>Oracle.Linux.Server/ServerName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Oratab</Name>
+            <Id>Oracle.Linux.Server/Oratab</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Linux Instance</Name>
+            <Id>Oracle.Linux.Instance</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="8" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Linux Listener</Name>
+            <Id>Oracle.Linux.Listener</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+      <View ID="View_LinuxServersListeners" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Listener" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Oracle.Linux.Listener-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Listener Name</Name>
+            <Id>Oracle.Linux.Listener/ListenerName</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+      <View ID="View_LinuxServersInstances" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Oracle.Linux.Instance-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Instance Name</Name>
+            <Id>Oracle.Linux.Instance/InstanceName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Home</Name>
+            <Id>Oracle.Linux.Instance/OracleHome</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Start on boot</Name>
+            <Id>Oracle.Linux.Instance/Startonboot</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="8" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Linux Instance AlertLog</Name>
+            <Id>Oracle.Linux.Instance.AlertLog</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="9" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Linux Instance Schema</Name>
+            <Id>Oracle.Linux.Instance.Schema</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="10" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Linux Instance TableSpace</Name>
+            <Id>Oracle.Linux.Instance.TableSpace</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+      <View ID="View_LinuxServersInstancesTableSpaces" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance.TableSpace" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Oracle.Linux.Instance.TableSpace-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>TableSpace Name</Name>
+            <Id>Oracle.Linux.Instance.TableSpace/TableSpaceName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Size (MB)</Name>
+            <Id>Oracle.Linux.Instance.TableSpace/Size</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+      <View ID="View_LinuxServersInstancesSchema" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance.Schema" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Oracle.Linux.Instance.Schema-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Schema Name</Name>
+            <Id>Oracle.Linux.Instance.Schema/SchemaName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Linux Instance Schema Jobs</Name>
+            <Id>Oracle.Linux.Instance.Schema.Job</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Oracle Linux Instance Schema Objects</Name>
+            <Id>Oracle.Linux.Instance.Schema.Object</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+      <View ID="View_LinuxServersInstancesAlertLogs" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance.AlertLog" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Oracle.Linux.Instance.AlertLog-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>background_core_dump</Name>
+            <Id>Oracle.Linux.Instance.AlertLog/background_core_dump</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="6" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>background_dump_dest</Name>
+            <Id>Oracle.Linux.Instance.AlertLog/background_dump_dest</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="7" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>core_dump_dest</Name>
+            <Id>Oracle.Linux.Instance.AlertLog/core_dump_dest</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="8" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>max_dump_file_size</Name>
+            <Id>Oracle.Linux.Instance.AlertLog/max_dump_file_size</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="9" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>shadow_core_dump</Name>
+            <Id>Oracle.Linux.Instance.AlertLog/shadow_core_dump</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="10" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>user_dump_dest</Name>
+            <Id>Oracle.Linux.Instance.AlertLog/user_dump_dest</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+      <View ID="View_LinuxServersInstancesSchemaJobs" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance.Schema.Job" TypeID="SC!Microsoft.SystemCenter.StateViewType" Visible="true">
+        <Category>Operations</Category>
+        <Criteria>
+          <InMaintenanceMode>false</InMaintenanceMode>
+        </Criteria>
+        <Presentation>
+          <ColumnInfo Index="0" SortIndex="0" Width="100" Grouped="false" Sorted="true" IsSortable="true" Visible="true" SortOrder="Descending">
+            <Name>State</Name>
+            <Id>Oracle.Linux.Instance.Schema.Job-*-Health</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="1" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Maintenance Mode</Name>
+            <Id>InMaintenanceMode</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="2" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Name</Name>
+            <Id>Name</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="3" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="true" SortOrder="Ascending">
+            <Name>Path</Name>
+            <Id>Path</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="4" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Display Name</Name>
+            <Id>System.Entity/DisplayName</Id>
+          </ColumnInfo>
+          <ColumnInfo Index="5" SortIndex="-1" Width="100" Grouped="false" Sorted="false" IsSortable="true" Visible="false" SortOrder="Ascending">
+            <Name>Job Name</Name>
+            <Id>Oracle.Linux.Instance.Schema.Job/JobName</Id>
+          </ColumnInfo>
+        </Presentation>
+        <Target />
+      </View>
+    </Views>
+    <Folders>
+      <Folder ID="Folder_OracleMainFolder" Accessibility="Public" ParentFolder="SC!Microsoft.SystemCenter.Monitoring.ViewFolder.Root" />
+      <Folder ID="Folder_OracleLinuxFolder" Accessibility="Public" ParentFolder="Folder_OracleMainFolder" />
+      <Folder ID="Folder_OracleLinuxInstanceFolder" Accessibility="Public" ParentFolder="Folder_OracleLinuxFolder" />
+      <Folder ID="Folder_OracleLinuxInstanceJobsFolder" Accessibility="Public" ParentFolder="Folder_OracleLinuxInstanceFolder" />
+    </Folders>
+    <FolderItems>
+      <FolderItem ElementID="View_LinuxServers" ID="View_LinuxServers" Folder="Folder_OracleMainFolder" />
+      <FolderItem ElementID="View_LinuxServersListeners" ID="View_LinuxServersListeners" Folder="Folder_OracleLinuxFolder" />
+      <FolderItem ElementID="View_LinuxServersInstances" ID="View_LinuxServersInstances" Folder="Folder_OracleLinuxFolder" />
+      <FolderItem ElementID="View_LinuxServersInstancesTableSpaces" ID="View_LinuxServersInstancesTableSpaces" Folder="Folder_OracleLinuxInstanceFolder" />
+      <FolderItem ElementID="View_LinuxServersInstancesSchema" ID="View_LinuxServersInstancesSchema" Folder="Folder_OracleLinuxInstanceFolder" />
+      <FolderItem ElementID="View_LinuxServersInstancesAlertLogs" ID="View_LinuxServersInstancesAlertLogs" Folder="Folder_OracleLinuxInstanceFolder" />
+      <FolderItem ElementID="View_LinuxServersInstancesSchemaJobs" ID="View_LinuxServersInstancesSchemaJobs" Folder="Folder_OracleLinuxInstanceJobsFolder" />
+    </FolderItems>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+    <DisplayString ElementID="Folder_OracleMainFolder">
+      <Name>Oracle</Name>
+    </DisplayString>
+    <DisplayString ElementID="View_LinuxServers">
+      <Name>Oracle Linux Servers</Name>
+    </DisplayString>
+    <DisplayString ElementID="Folder_OracleLinuxFolder">
+      <Name>Linux</Name>
+    </DisplayString>
+    <DisplayString ElementID="View_LinuxServersListeners">
+      <Name>Listeners</Name>
+    </DisplayString>
+    <DisplayString ElementID="View_LinuxServersInstances">
+      <Name>Instance</Name>
+    </DisplayString>
+    <DisplayString ElementID="Folder_OracleLinuxInstanceFolder">
+      <Name>Instance</Name>
+    </DisplayString>
+    <DisplayString ElementID="View_LinuxServersInstancesTableSpaces">
+      <Name>TableSpace</Name>
+    </DisplayString>
+    <DisplayString ElementID="View_LinuxServersInstancesSchema">
+      <Name>Schema</Name>
+    </DisplayString>
+    <DisplayString ElementID="View_LinuxServersInstancesAlertLogs">
+      <Name>Alert Logs</Name>
+    </DisplayString>
+    <DisplayString ElementID="Folder_OracleLinuxInstanceJobsFolder">
+      <Name>Jobs</Name>
+    </DisplayString>
+    <DisplayString ElementID="View_LinuxServersInstancesSchemaJobs">
+      <Name>Jobs</Name>
+    </DisplayString>
+    </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPackFragment>

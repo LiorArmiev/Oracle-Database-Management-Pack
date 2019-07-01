@@ -1,0 +1,856 @@
+﻿<ManagementPackFragment SchemaVersion="2.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <TypeDefinitions>
+    <MonitorTypes>
+      <!--Listener Status -->
+      <UnitMonitorType ID="Oracle.Linux.Listener.ListenerStatus" Accessibility="Public">
+        <MonitorTypeStates>
+          <MonitorTypeState ID="ListenerReady" NoDetection="false" />
+          <MonitorTypeState ID="ListenerNotReady" NoDetection="false" />
+        </MonitorTypeStates>
+        <Configuration>
+          <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="ListenerName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="OracleHome" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <MonitorImplementation>
+          <MemberModules>
+            <DataSource ID="ShellCommandDS" TypeID="Oracle.DataSource.ShellCommandDiscovery">
+              <Interval>$Config/Interval$</Interval>
+              <TargetSystem>$Config/TargetSystem$</TargetSystem>
+              <ShellCommand>export ORACLE_HOME=$Config/OracleHome$;$ORACLE_HOME/bin/lsnrctl status |grep 'status READY'</ShellCommand>
+            </DataSource>
+            <ConditionDetection ID="CDListenerReady" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <RegExExpression>
+                  <ValueExpression>
+                    <XPathQuery>//*[local-name()="StdOut"]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>ContainsSubstring</Operator>
+                  <Pattern>status READY</Pattern>
+                </RegExExpression>
+              </Expression>
+            </ConditionDetection>
+            <ConditionDetection ID="CDListenerNotReady" TypeID="System!System.ExpressionFilter">
+              <Expression>
+                <RegExExpression>
+                  <ValueExpression>
+                    <XPathQuery>//*[local-name()="StdOut"]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>DoesNotContainSubstring</Operator>
+                  <Pattern>status READY</Pattern>
+                </RegExExpression>
+              </Expression>
+            </ConditionDetection>
+          </MemberModules>
+          <RegularDetections>
+            <RegularDetection MonitorTypeStateID="ListenerReady">
+              <Node ID="CDListenerReady">
+                <Node ID="ShellCommandDS" />
+              </Node>
+            </RegularDetection>
+            <RegularDetection MonitorTypeStateID="ListenerNotReady">
+              <Node ID="CDListenerNotReady">
+                <Node ID="ShellCommandDS" />
+              </Node>
+            </RegularDetection>
+          </RegularDetections>
+        </MonitorImplementation>
+      </UnitMonitorType>
+    </MonitorTypes>
+  </TypeDefinitions>
+  <Monitoring>
+    <Rules>
+      <!-- Table Space Rule collect space/status-->
+      <Rule ID="Oracle.Linux.Instance.TableSpace.FreeSpace.Rule" Enabled="false" Target="Oracle.Linux.Instance">
+        <Category>Custom</Category>
+        <DataSources>
+          <DataSource ID="Query" TypeID="Oracle.Linux.Library.DataSource.Query.Discovery">
+            <Interval>120</Interval>
+            <TargetSystem>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+            <OracleHome>$Target/Property[Type="Oracle.Linux.Instance"]/OracleHome$</OracleHome>
+            <OracleSID>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</OracleSID>
+            <Query>select 'value:'||TABLESPACE_NAME||':'||STATUS||':'||ROUND(SUM (BYTES/1048576))||':'||ROUND(SUM (MAXBYTES/1048576)) FROM DBA_DATA_FILES GROUP BY TABLESPACE_NAME,STATUS;</Query>
+          </DataSource>
+        </DataSources>
+        <WriteActions>
+          <WriteAction ID="PS" TypeID="Windows!Microsoft.Windows.PowerShellWriteAction">
+            <ScriptName>Oracle.Linux.Instance.TableSpace.FreeSpace.Rule.ps1</ScriptName>
+            <ScriptBody>
+              param ([string]$QueryOut,[string]$servername,[string]$instancename)
+              $api = New-Object -comObject 'Mom.ScriptAPI'
+              $evtlog = "Operations Manager"
+              $source = "Oracle"
+              try
+              {
+              if ([System.Diagnostics.EventLog]::SourceExists($source) -eq $false)
+              {
+              [System.Diagnostics.EventLog]::CreateEventSource($source, $evtlog)
+              }
+
+              #function to create the events with parameters
+              function CreateParamEvent ($evtID, $param1, $param2, $param3, $param4 ,$param5, $param6, $param7)
+              {
+              $id = New-Object System.Diagnostics.EventInstance($evtID,1); #INFORMATION EVENT
+              $evtObject = New-Object System.Diagnostics.EventLog;
+              $evtObject.Log = $evtlog;
+              $evtObject.Source = $source;
+              $evtObject.WriteEvent($id, @($param1,$param2,$param3,$param4,$param5,$param6,$param7))
+              }
+              }
+              catch
+              {}
+              foreach($row in $QueryOut -Split "value:")
+              {
+              if($row.IndexOf(":") -gt 0)
+              {
+              try
+              {
+              $row = $row.Replace(" ","").Replace("'","")
+              $tablespace = $row.Split(":")[0].trim()
+              $tablestatus = $row.Split(":")[1].trim()
+              $size = $row.Split(":")[2].trim()
+              $maxsize = $row.Split(":")[3].trim()
+              $percent = (($size/$maxsize)*100)
+              CreateParamEvent 1 "Table $tablespace is at size $size" "$servername" "$instancename" "$tablespace" "$size" "$percent" "$tablestatus"
+              }
+              catch
+              {
+              $errormsg = "Problem with Row:" + $row + "`nOn:" + $servername + " " + $instancename + "`nError: " + $error[0]
+              $api.LogScriptEvent("Oracle.Linux.Instance.TableSpace.FreeSpace.Rule.ps1",17,0,$errormsg)
+              }
+              }
+              }
+            </ScriptBody>
+            <Parameters>
+              <Parameter>
+                <Name>QueryOut</Name>
+                <Value>$Data///*[local-name()="StdOut"]$</Value>
+              </Parameter>
+              <Parameter>
+                <Name>ServerName</Name>
+                <Value>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</Value>
+              </Parameter>
+              <Parameter>
+                <Name>InstanceName</Name>
+                <Value>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+              </Parameter>
+            </Parameters>
+            <TimeoutSeconds>60</TimeoutSeconds>
+          </WriteAction>
+        </WriteActions>
+      </Rule>
+      <!-- Job Status Rule collect job statu last 10min-->
+      <Rule ID="Oracle.Linux.Instance.Schema.Job.Rule" Enabled="false" Target="Oracle.Linux.Instance">
+        <Category>Custom</Category>
+        <DataSources>
+          <DataSource ID="Query" TypeID="Oracle.Linux.Library.DataSource.Query.Discovery">
+            <Interval>120</Interval>
+            <TargetSystem>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+            <OracleHome>$Target/Property[Type="Oracle.Linux.Instance"]/OracleHome$</OracleHome>
+            <OracleSID>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</OracleSID>
+            <Query>select 'value:'|| to_char(log_date, 'DD-MON-YY HH24.MI.SS') ||':'|| job_name ||':'|| owner ||':'|| status ||':'|| SUBSTR(additional_info, 1, 40) ADDITIONAL_INFO FROM dba_SCHEDULER_JOB_RUN_DETAILS where log_date >= sysdate - 10/(24*60) order by log_date;</Query>
+          </DataSource>
+        </DataSources>
+        <WriteActions>
+          <WriteAction ID="PS" TypeID="Windows!Microsoft.Windows.PowerShellWriteAction">
+            <ScriptName>Oracle.Linux.Instance.Schema.Job.Status.Rule.ps1</ScriptName>
+            <ScriptBody>
+              param ([string]$QueryOut,[string]$servername,[string]$instancename)
+              $api = New-Object -comObject 'Mom.ScriptAPI'
+              $evtlog = "Operations Manager"
+              $source = "Oracle"
+              try
+              {
+              if ([System.Diagnostics.EventLog]::SourceExists($source) -eq $false)
+              {
+              [System.Diagnostics.EventLog]::CreateEventSource($source, $evtlog)
+              }
+
+              #function to create the events with parameters
+              function CreateParamEvent ($evtID, $param1, $param2, $param3, $param4 ,$param5, $param6, $param7)
+              {
+              $id = New-Object System.Diagnostics.EventInstance($evtID,1); #INFORMATION EVENT
+              $evtObject = New-Object System.Diagnostics.EventLog;
+              $evtObject.Log = $evtlog;
+              $evtObject.Source = $source;
+              $evtObject.WriteEvent($id, @($param1,$param2,$param3,$param4,$param5,$param6,$param7))
+              }
+              }
+              catch
+              {}
+              foreach($row in $QueryOut -Split "value:")
+              {
+              if($row.IndexOf(":") -gt 0)
+              {
+              try
+              {
+              $row = $row.Replace(" ","").Replace("'","")
+              $jobdate = $row.Split(":")[0].trim()
+              $jobname = $row.Split(":")[1].trim()
+              $schema = $row.Split(":")[2].trim()
+              $jobstatus = $row.Split(":")[3].trim()
+              if($row.Split(":").count -eq 5)
+              {
+              $description = $row.Split(":")[4].trim()
+              }
+              CreateParamEvent 2 "Job $jobstatus on $instancename status $jobstatus" "$servername" "$instancename" "$schema" "$jobname" "$jobstatus" "$jobdate" "$description"
+              }
+              catch
+              {
+              $errormsg = "Problem with Row:" + $row + "`nOn:" + $servername + " " + $instancename + "`nError: " + $error[0]
+              $api.LogScriptEvent("Oracle.Linux.Instance.Schema.Job.Status.Rule.ps1",18,0,$errormsg)
+              }
+              }
+              }
+            </ScriptBody>
+            <Parameters>
+              <Parameter>
+                <Name>QueryOut</Name>
+                <Value>$Data///*[local-name()="StdOut"]$</Value>
+              </Parameter>
+              <Parameter>
+                <Name>ServerName</Name>
+                <Value>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</Value>
+              </Parameter>
+              <Parameter>
+                <Name>InstanceName</Name>
+                <Value>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+              </Parameter>
+            </Parameters>
+            <TimeoutSeconds>60</TimeoutSeconds>
+          </WriteAction>
+        </WriteActions>
+      </Rule>
+    </Rules>
+    <Monitors>
+      <!--Listener Status -->
+      <UnitMonitor ID="Oracle.Linux.Instance.ListenerStatus.Monitor" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Listener" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Oracle.Linux.Listener.ListenerStatus" ConfirmDelivery="true">
+        <Category>AvailabilityHealth</Category>
+        <AlertSettings AlertMessage="Oracle.Linux.Instance.ListenerStatus.Monitor_AlertMessageResourceID">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>Error</AlertSeverity>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="ListenerReady" MonitorTypeStateID="ListenerReady" HealthState="Success" />
+          <OperationalState ID="ListenerNotReady" MonitorTypeStateID="ListenerNotReady" HealthState="Error" />
+        </OperationalStates>
+        <Configuration>
+          <Interval>300</Interval>
+          <TargetSystem>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+          <ListenerName>Not Used, No more then one listner</ListenerName>
+          <OracleHome>$Target/Property[Type="Oracle.Linux.Listener"]/ListenerOraPath$</OracleHome>
+        </Configuration>
+      </UnitMonitor>
+      <!-- Monitor TableSpace Space %-->
+        <UnitMonitor ID="Oracle.Linux.Instance.TableSpace.Space.Monitor" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance.TableSpace" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Windows!Microsoft.Windows.2SingleEventLog2StateMonitorType" ConfirmDelivery="true">
+        <Category>Custom</Category>
+        <AlertSettings AlertMessage="Oracle.Linux.Instance.TableSpace.Space.Monitor_AlertMessageResourceID">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>Error</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Params/Param[4]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Params/Param[6]$</AlertParameter2>
+            <AlertParameter3>$Data/Context/Params/Param[5]$</AlertParameter3>
+            <AlertParameter4>$Target/Property[Type="Oracle.Linux.Instance.TableSpace"]/Size$</AlertParameter4>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="FirstEventRaised" MonitorTypeStateID="FirstEventRaised" HealthState="Error" />
+          <OperationalState ID="SecondEventRaised" MonitorTypeStateID="SecondEventRaised" HealthState="Success" />
+        </OperationalStates>
+        <Configuration>
+          <FirstComputerName>.</FirstComputerName>
+          <FirstLogName>Operations Manager</FirstLogName>
+          <FirstExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="UnsignedInteger">EventDisplayNumber</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="UnsignedInteger">1</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">PublisherName</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">Oracle</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[2]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Host/Property[Type="Oracle.Linux.Server"]/ServerName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[4]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="Oracle.Linux.Instance.TableSpace"]/TableSpaceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[5]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Greater</Operator>
+                  <ValueExpression>
+                    <Value Type="String">100</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[6]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Greater</Operator>
+                  <ValueExpression>
+                    <Value Type="String">90</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </FirstExpression>
+          <SecondComputerName>.</SecondComputerName>
+          <SecondLogName>Operations Manager</SecondLogName>
+          <SecondExpression>
+            <And>
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="UnsignedInteger">EventDisplayNumber</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value Type="UnsignedInteger">1</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">PublisherName</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value Type="String">Oracle</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">Params/Param[2]</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value Type="String">$Target/Host/Host/Property[Type="Oracle.Linux.Server"]/ServerName$</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value Type="String">$Target/Host/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">Params/Param[4]</XPathQuery>
+                    </ValueExpression>
+                    <Operator>Equal</Operator>
+                    <ValueExpression>
+                      <Value Type="String">$Target/Property[Type="Oracle.Linux.Instance.TableSpace"]/TableSpaceName$</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">Params/Param[5]</XPathQuery>
+                    </ValueExpression>
+                    <Operator>LessEqual</Operator>
+                    <ValueExpression>
+                      <Value Type="String">100</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+                <Expression>
+                  <SimpleExpression>
+                    <ValueExpression>
+                      <XPathQuery Type="String">Params/Param[6]</XPathQuery>
+                    </ValueExpression>
+                    <Operator>LessEqual</Operator>
+                    <ValueExpression>
+                      <Value Type="String">90</Value>
+                    </ValueExpression>
+                  </SimpleExpression>
+                </Expression>
+            </And>
+          </SecondExpression>
+        </Configuration>
+      </UnitMonitor>
+      <!-- Monitor TableSpace Status-->
+        <UnitMonitor ID="Oracle.Linux.Instance.TableSpace.Avilability" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance.TableSpace" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Windows!Microsoft.Windows.2SingleEventLog2StateMonitorType" ConfirmDelivery="true">
+        <Category>Custom</Category>
+        <AlertSettings AlertMessage="Oracle.Linux.Instance.TableSpace.Avilability_AlertMessageResourceID">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>Error</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Params/Param[1]$</AlertParameter1>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="FirstEventRaised" MonitorTypeStateID="FirstEventRaised" HealthState="Error" />
+          <OperationalState ID="SecondEventRaised" MonitorTypeStateID="SecondEventRaised" HealthState="Success" />
+        </OperationalStates>
+        <Configuration>
+          <FirstComputerName>.</FirstComputerName>
+          <FirstLogName>Operations Manager</FirstLogName>
+          <FirstExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="UnsignedInteger">EventDisplayNumber</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="UnsignedInteger">1</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">PublisherName</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">Oracle</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[2]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Host/Property[Type="Oracle.Linux.Server"]/ServerName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[4]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="Oracle.Linux.Instance.TableSpace"]/TableSpaceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[7]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>NotEqual</Operator>
+                  <ValueExpression>
+                    <Value Type="String">AVAILABLE</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </FirstExpression>
+          <SecondComputerName>.</SecondComputerName>
+          <SecondLogName>Operations Manager</SecondLogName>
+          <SecondExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="UnsignedInteger">EventDisplayNumber</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="UnsignedInteger">1</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">PublisherName</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">Oracle</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[2]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Host/Property[Type="Oracle.Linux.Server"]/ServerName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[4]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="Oracle.Linux.Instance.TableSpace"]/TableSpaceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[7]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">AVAILABLE</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </SecondExpression>
+        </Configuration>
+      </UnitMonitor>
+      <!-- Monitor Job Status -->
+      <UnitMonitor ID="Oracle.Linux.Instance.Schema.Jobs.Status" Accessibility="Public" Enabled="true" Target="Oracle.Linux.Instance.Schema.Job" ParentMonitorID="Health!System.Health.AvailabilityState" Remotable="true" Priority="Normal" TypeID="Windows!Microsoft.Windows.2SingleEventLog2StateMonitorType" ConfirmDelivery="true">
+        <Category>Custom</Category>
+        <AlertSettings AlertMessage="Oracle.Linux.Instance.Schema.Jobs.Status_AlertMessageResourceID">
+          <AlertOnState>Error</AlertOnState>
+          <AutoResolve>true</AutoResolve>
+          <AlertPriority>Normal</AlertPriority>
+          <AlertSeverity>Error</AlertSeverity>
+          <AlertParameters>
+            <AlertParameter1>$Data/Context/Params/Param[5]$</AlertParameter1>
+            <AlertParameter2>$Data/Context/Params/Param[8]$</AlertParameter2>
+          </AlertParameters>
+        </AlertSettings>
+        <OperationalStates>
+          <OperationalState ID="FirstEventRaised" MonitorTypeStateID="FirstEventRaised" HealthState="Error" />
+          <OperationalState ID="SecondEventRaised" MonitorTypeStateID="SecondEventRaised" HealthState="Success" />
+        </OperationalStates>
+        <Configuration>
+          <FirstComputerName>.</FirstComputerName>
+          <FirstLogName>Operations Manager</FirstLogName>
+          <FirstExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="UnsignedInteger">EventDisplayNumber</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="UnsignedInteger">2</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">PublisherName</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">Oracle</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[2]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Host/Host/Property[Type="Oracle.Linux.Server"]/ServerName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Host/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="Oracle.Linux.Instance.Schema"]/SchemaName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[4]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="Oracle.Linux.Instance.Schema.Job"]/JobName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[5]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>NotEqual</Operator>
+                  <ValueExpression>
+                    <Value Type="String">SUCCEEDED</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </FirstExpression>
+          <SecondComputerName>.</SecondComputerName>
+          <SecondLogName>Operations Manager</SecondLogName>
+          <SecondExpression>
+            <And>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="UnsignedInteger">EventDisplayNumber</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="UnsignedInteger">2</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">PublisherName</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">Oracle</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[2]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Host/Host/Property[Type="Oracle.Linux.Server"]/ServerName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Host/Property[Type="Oracle.Linux.Instance"]/InstanceName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[3]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Host/Property[Type="Oracle.Linux.Instance.Schema"]/SchemaName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[4]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">$Target/Property[Type="Oracle.Linux.Instance.Schema.Job"]/JobName$</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+              <Expression>
+                <SimpleExpression>
+                  <ValueExpression>
+                    <XPathQuery Type="String">Params/Param[5]</XPathQuery>
+                  </ValueExpression>
+                  <Operator>Equal</Operator>
+                  <ValueExpression>
+                    <Value Type="String">SUCCEEDED</Value>
+                  </ValueExpression>
+                </SimpleExpression>
+              </Expression>
+            </And>
+          </SecondExpression>
+        </Configuration>
+      </UnitMonitor>
+    </Monitors>
+  </Monitoring>
+  <Presentation>
+    <StringResources>
+      <StringResource ID="Oracle.Linux.Instance.ListenerStatus.Monitor_AlertMessageResourceID"/>
+      <StringResource ID="Oracle.Linux.Instance.TableSpace.Space.Monitor_AlertMessageResourceID" />
+      <StringResource ID="Oracle.Linux.Instance.TableSpace.Avilability_AlertMessageResourceID" />
+      <StringResource ID="Oracle.Linux.Instance.Schema.Jobs.Status_AlertMessageResourceID" />
+    </StringResources>
+  </Presentation>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <!--Listener Status -->
+        <DisplayString ElementID="Oracle.Linux.Instance.ListenerStatus.Monitor">
+          <Name>Oracle Linux Instance Listener Status Monitor</Name>
+        </DisplayString>
+        <!-- TableSpace Space-->
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Space.Monitor">
+          <Name>Oracle Linux TableSpace Space Monitor</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Space.Monitor" SubElementID="SecondEventRaised">
+          <Name>Second Event Raised</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Space.Monitor" SubElementID="FirstEventRaised">
+          <Name>First Event Raised</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Space.Monitor_AlertMessageResourceID">
+          <Name>Oracle Linux TableSpace Space is Low</Name>
+          <Description>
+            Table {0} is {1}% full.
+            with {2}MB out of {3}MB
+          </Description>
+        </DisplayString>
+        <!-- TablesSpace Status -->
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Avilability">
+          <Name>Oracle Linux TableSpace Avilability Monitor</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Avilability" SubElementID="SecondEventRaised">
+          <Name>Second Event Raised</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Avilability" SubElementID="FirstEventRaised">
+          <Name>First Event Raised</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Avilability_AlertMessageResourceID">
+          <Name>Oracle Linux TableSpace is not available</Name>
+          <Description>{0}</Description>
+        </DisplayString>
+        <!-- Jobs Monitor-->
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Jobs.Status">
+          <Name>Oracle Job Failed</Name>
+          <Description />
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Jobs.Status" SubElementID="FirstEventRaised">
+          <Name>First Event Raised</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Jobs.Status" SubElementID="SecondEventRaised">
+          <Name>Second Event Raised</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Jobs.Status_AlertMessageResourceID">
+          <Name>Oracle Job Failed</Name>
+          <Description>
+            Job {0} Failed
+            Error description:
+            {1}
+          </Description>
+        </DisplayString>
+      </DisplayStrings>
+  </LanguagePack>
+  </LanguagePacks>
+</ManagementPackFragment>

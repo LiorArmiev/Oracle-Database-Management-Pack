@@ -1,0 +1,236 @@
+﻿<ManagementPackFragment SchemaVersion="2.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <TypeDefinitions>
+    <EntityTypes>
+      <ClassTypes>
+        <!-- Global Class Definithion-->
+        <ClassType ID="Oracle.Application" Accessibility="Public" Abstract="true" Base="MUL!Microsoft.Unix.LocalApplication" Hosted="true" Singleton="false" Extension="false" />
+        <ClassType ID="Oracle.Component" Accessibility="Public" Abstract="true" Base="MUL!Microsoft.Unix.ApplicationComponent" Hosted="false" Singleton="false" Extension="false" />
+        
+        <!-- Server-->
+        <ClassType ID="Oracle.Linux.Server" Accessibility="Public" Abstract="false" Base="Oracle.Application" Hosted="true" Singleton="false" Extension="false">
+          <Property ID="ServerName" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+          <Property ID="Oratab" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+        </ClassType>
+        
+              <!-- Listener -->
+              <ClassType ID="Oracle.Linux.Listener" Accessibility="Public" Abstract="false" Base="Oracle.Component" Hosted="true" Singleton="false" Extension="false">
+                <Property ID="ListenerPath" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                <Property ID="ListenerName" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                <Property ID="ListenerUser" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                <Property ID="ListenerOraPath" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+              </ClassType>
+
+              <!-- Instance-->
+              <ClassType ID="Oracle.Linux.Instance" Accessibility="Public" Abstract="false" Base="Oracle.Component" Hosted="true" Singleton="false" Extension="false">
+                <Property ID="InstanceName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                <Property ID="OracleHome" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                <Property ID="Startonboot" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+              </ClassType>
+                    
+                      <!-- TableSpace -->
+                      <ClassType ID="Oracle.Linux.Instance.TableSpace" Accessibility="Public" Abstract="false" Base="Oracle.Component" Hosted="true" Singleton="false" Extension="false">
+                        <Property ID="TableSpaceName" Type="string" AutoIncrement="true" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                        <Property ID="Size" Type="string" AutoIncrement="true" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                      </ClassType>
+
+                      <!-- Schema -->
+                      <ClassType ID="Oracle.Linux.Instance.Schema" Accessibility="Public" Abstract="false" Base="Oracle.Component" Hosted="true" Singleton="false" Extension="false">
+                        <Property ID="SchemaName" Type="string" AutoIncrement="true" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                      </ClassType>
+
+                              <!-- Jobs -->
+                              <ClassType ID="Oracle.Linux.Instance.Schema.Job" Accessibility="Public" Abstract="false" Base="Oracle.Component" Hosted="true" Singleton="false" Extension="false">
+                                <Property ID="JobName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                                <Property ID="Comment" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                              </ClassType>
+        
+                      <!-- Processes -->
+                      <ClassType ID="Oracle.Linux.Instance.Processes" Accessibility="Public" Abstract="false" Base="Oracle.Component" Hosted="true" Singleton="false" Extension="false">
+                        <Property ID="ProcessName" Type="string" AutoIncrement="false" Key="true" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                        <Property ID="ProcessCount" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                      </ClassType>
+
+
+                      <!-- Alert Log -->
+                      <ClassType ID="Oracle.Linux.Instance.AlertLog" Accessibility="Public" Abstract="false" Base="Oracle.Component" Hosted="true" Singleton="false" Extension="false">
+                        <Property ID="background_core_dump" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                        <Property ID="background_dump_dest" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                        <Property ID="core_dump_dest" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                        <Property ID="max_dump_file_size" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                        <Property ID="shadow_core_dump" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                        <Property ID="user_dump_dest" Type="string" AutoIncrement="false" Key="false" CaseSensitive="false" MaxLength="256" MinLength="0" Required="false" Scale="0" />
+                      </ClassType>
+     
+       
+      </ClassTypes>
+      
+      <RelationshipTypes>
+        <!-- Linux Server -->
+        <RelationshipType ID="Oracle.Relationship.Linux.Server.IsOracleServer" Accessibility="Public" Abstract="false" Base="System!System.Containment">
+          <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="MUL!Microsoft.Unix.ComputerRole" />
+          <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Server" />
+        </RelationshipType>
+                <!-- Listener -->
+                <RelationshipType ID="Oracle.Relationship.Linux.Server.Listeners" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
+                  <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Server" />
+                  <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Listener" />
+                </RelationshipType>
+                <!--Instance -->
+                <RelationshipType ID="Oracle.Relationship.Linux.Listener.Instance" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
+                  <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Server" />
+                  <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance" />
+                </RelationshipType>
+                        <!-- TableSpace -->
+                        <RelationshipType ID="Oracle.Relationship.Linux.Instance.TableSpace" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
+                          <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance" />
+                          <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance.TableSpace" />
+                        </RelationshipType>
+                        <!-- Schema -->
+                        <RelationshipType ID="Oracle.Relationship.Linux.Instance.Schema" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
+                          <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance" />
+                          <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance.Schema" />
+                        </RelationshipType>        
+                                  <!-- Job -->
+                                  <RelationshipType ID="Oracle.Relationship.Linux.Schema.Job" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
+                                    <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance.Schema" />
+                                    <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance.Schema.Job" />
+                                  </RelationshipType>
+                        <!-- Processes -->
+                        <RelationshipType ID="Oracle.Relationship.Linux.Instance.Processes" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
+                          <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance" />
+                          <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance.Processes" />
+                        </RelationshipType>
+                        <!-- AlertLog -->
+                        <RelationshipType ID="Oracle.Relationship.Linux.Instance.AlertLog" Accessibility="Public" Abstract="false" Base="System!System.Hosting">
+                          <Source ID="Source" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance" />
+                          <Target ID="Target" MinCardinality="0" MaxCardinality="2147483647" Type="Oracle.Linux.Instance.AlertLog" />
+                        </RelationshipType>
+      </RelationshipTypes>
+        
+    </EntityTypes>
+    <SecureReferences>
+      <SecureReference ID="Oracle.Linux.Query.RunAsProfile" Accessibility="Internal" />
+    </SecureReferences>
+  </TypeDefinitions>
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>        
+        <!-- Oracle Server Class-->
+        <DisplayString ElementID="Oracle.Linux.Server">
+          <Name>Oracle Linux Server</Name>
+        </DisplayString>        
+        <DisplayString ElementID="Oracle.Linux.Server" SubElementID="ServerName">
+          <Name>Server Name</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Server" SubElementID="Oratab">
+          <Name>Oracle Oratab</Name>
+        </DisplayString>
+
+
+        <!-- Oracle Instance Class-->
+        <DisplayString  ElementID="Oracle.Linux.Instance">
+          <Name>Oracle Linux Instance</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance" SubElementID="InstanceName">
+          <Name>Instance Name</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance" SubElementID="OracleHome">
+          <Name>Oracle Home</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance" SubElementID="Startonboot">
+          <Name>Start on boot</Name>
+        </DisplayString>
+
+        <!--Oracle Instance AlertLog-->
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLog">
+          <Name>Oracle Linux Instance AlertLog</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLog" SubElementID="background_core_dump">
+          <Name>background_core_dump</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLog" SubElementID="background_dump_dest">
+          <Name>background_dump_dest</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLog" SubElementID="core_dump_dest">
+          <Name>core_dump_dest</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLog" SubElementID="max_dump_file_size">
+          <Name>max_dump_file_size</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLog" SubElementID="shadow_core_dump">
+          <Name>shadow_core_dump</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLog" SubElementID="user_dump_dest">
+          <Name>user_dump_dest</Name>
+        </DisplayString>
+        
+        <!-- Oracle Instance Table Space -->
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace">
+          <Name>Oracle Linux Instance TableSpace</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace" SubElementID="TableSpaceName">
+          <Name>TableSpace Name</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace" SubElementID="Size">
+          <Name>Size (MB)</Name>
+        </DisplayString>
+
+        <!-- Listener -->
+        <DisplayString ElementID="Oracle.Linux.Listener">
+          <Name>Oracle Linux Listener</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Listener" SubElementID="ListenerPath">
+          <Name>Listener Path</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Listener" SubElementID="ListenerUser">
+          <Name>Listener User</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Listener" SubElementID="ListenerName">
+          <Name>Listener Name</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Listener" SubElementID="ListenerOraPath">
+          <Name>Listener Oracle Path</Name>
+        </DisplayString>
+
+        <!-- Schema-->
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema">
+          <Name>Oracle Linux Instance Schema</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema" SubElementID="SchemaName">
+          <Name>Schema Name</Name>
+        </DisplayString>
+
+
+        <!-- Jobs -->
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Job">
+          <Name>Oracle Linux Instance Schema Jobs</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Job" SubElementID="JobName">
+          <Name>Job Name</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Job" SubElementID="Comment">
+            <Name>Comment</Name>
+          </DisplayString> 
+
+
+        <!-- Processes-->
+        <DisplayString ElementID="Oracle.Linux.Instance.Processes">
+          <Name>Oracle Linux Instance Processes</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Processes" SubElementID="ProcessName">
+          <Name>Process Name</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Processes" SubElementID="ProcessCount">
+          <Name>Process Count</Name>
+        </DisplayString>
+        
+        <!-- Oracle RunAsProfile for Query-->
+        <DisplayString ElementID="Oracle.Linux.Query.RunAsProfile">
+          <Name>Oracle Linux Query Account</Name>
+        </DisplayString>
+
+
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPackFragment>

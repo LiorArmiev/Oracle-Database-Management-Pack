@@ -1,0 +1,894 @@
+﻿<ManagementPackFragment SchemaVersion="2.0" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <TypeDefinitions>
+      <ModuleTypes>
+        <!-- Shell Discovery dont chnage-->
+        <DataSourceModuleType ID="Oracle.DataSource.ShellCommandDiscovery" Accessibility="Public" Batching="false">
+          <Configuration>
+            <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="ShellCommand" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          </Configuration>
+          <ModuleImplementation Isolation="Any">
+            <Composite>
+              <MemberModules>
+                <DataSource ID="Scheduler" TypeID="System!System.Discovery.Scheduler">
+                  <Scheduler>
+                    <SimpleReccuringSchedule>
+                      <Interval>$Config/Interval$</Interval>
+                      <SpreadInitializationOverInterval>180</SpreadInitializationOverInterval>
+                    </SimpleReccuringSchedule>
+                    <ExcludeDates />
+                  </Scheduler>
+                </DataSource>
+                <ProbeAction ID="InvokeProbe" TypeID="MUSL!Microsoft.Unix.ShellCommand.ProbeAction">
+                  <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                  <UserName>$RunAs[Name="MUL!Microsoft.Unix.ActionAccount"]/UserName$</UserName>
+                  <Password>$RunAs[Name="MUL!Microsoft.Unix.ActionAccount"]/Password$</Password>
+                  <ShellCommand>$Config/ShellCommand$</ShellCommand>
+                  <TimeOut>120</TimeOut>
+                  <TimeOutInMS>120000</TimeOutInMS>
+                </ProbeAction>
+                <ConditionDetection ID="ErrorFilter" TypeID="System!System.ExpressionFilter">
+                  <Expression>
+                    <Not>
+                      <Expression>
+                        <Exists>
+                          <ValueExpression>
+                            <XPathQuery>WsManData/ErrorCode</XPathQuery>
+                          </ValueExpression>
+                        </Exists>
+                      </Expression>
+                    </Not>
+                  </Expression>
+                </ConditionDetection>
+              </MemberModules>
+              <Composition>
+                <Node ID="ErrorFilter">
+                  <Node ID="InvokeProbe">
+                    <Node ID="Scheduler" />
+                  </Node>
+                </Node>
+              </Composition>
+            </Composite>
+          </ModuleImplementation>
+          <OutputType>MSWL!Microsoft.SystemCenter.WSManagement.WSManData</OutputType>
+        </DataSourceModuleType> 
+        <!-- Main Linux Oracle Instance Discovery -->
+        <DataSourceModuleType ID="Oracle.Linux.Discover.Server.DS" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" name="ExcludeInstance" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="Interval" Selector="$Config/Interval$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="ShellCommand" TypeID="Oracle.DataSource.ShellCommandDiscovery">
+                <Interval>$Config/Interval$</Interval>
+                <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                <ShellCommand>grep -v '^#' '/etc/oratab' |grep / | paste -sd "," -</ShellCommand>
+              </DataSource>
+              <ProbeAction ID="PSDiscovery" TypeID="Windows!Microsoft.Windows.PowerShellDiscoveryProbe">
+                <ScriptName>DiscoverOracleServer.ps1</ScriptName>
+                <ScriptBody>
+                  param ([string] $SourceID,[string]$ManagedEntityID,[string]$PrincipalName,[string]$Oratab)
+
+                  if($Oratab -notmatch "No such file or directory" -and $Oratab -ne "" -and $Oratab -ne $null -and $Oratab -ne " ")
+                  {
+                  $api = New-Object -comObject 'Mom.ScriptAPI'
+                  $discoveryData = $api.CreateDiscoveryData(0, $SourceID, $ManagedEntityID)
+
+                  #Create Oracle Server Instance
+                  $oInst = $discoveryData.CreateClassInstance("$MPElement[Name='Oracle.Linux.Server']$")
+                  $oInst.AddProperty("$MPElement[Name='MUL!Microsoft.Unix.Computer']/PrincipalName$", $PrincipalName)
+                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Server']/ServerName$", $PrincipalName)
+                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Server']/Oratab$", $Oratab)
+                  $oInst.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$","Oracle Linux")
+                  $discoveryData.AddInstance($oInst)
+
+                  $instCount = 0
+                  foreach($sid in $Oratab.Split(','))
+                  {
+                  try
+                  {
+                  $OracleName = $sid.Split(":")[0]
+                  $OracleHome = $sid.Split(":")[1]
+                  $OracleBoot = $sid.Split(":")[2]
+
+                  $oInst = $discoveryData.CreateClassInstance("$MPElement[Name='Oracle.Linux.Instance']$")
+                  $oInst.AddProperty("$MPElement[Name='MUL!Microsoft.Unix.Computer']/PrincipalName$", $PrincipalName)
+                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance']/InstanceName$", $OracleName)
+                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance']/OracleHome$", $OracleHome)
+                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance']/Startonboot$", $OracleBoot)
+                  $oInst.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$",$OracleName)
+                  $discoveryData.AddInstance($oInst)
+                  $instCount++
+                  }
+                  catch
+                  {
+                  $api.LogScriptEvent("DiscoverOracleServer.ps1",17,1,$Error[0])
+                  }
+
+                  }
+                  $api.LogScriptEvent("DiscoverOracleServer.ps1",10,0,"Oracle Linux Server and Instance Discovery Finished on Server $PrincipalName with $instCount found. `n$Oratab")
+                  $discoveryData
+                  }
+                </ScriptBody>
+                <Parameters>
+                  <Parameter>
+                    <Name>SourceID</Name>
+                    <Value>$MPElement$</Value>
+                  </Parameter>
+                  <Parameter>
+                    <Name>ManagedEntityID</Name>
+                    <Value>$Target/Id$</Value>
+                  </Parameter>
+                  <Parameter>
+                    <Name>PrincipalName</Name>
+                    <Value>$Config/TargetSystem$</Value>
+                  </Parameter>
+                  <Parameter>
+                    <Name>Oratab</Name>
+                    <Value>$Data///*[local-name()="StdOut"]$</Value>
+                  </Parameter>
+                </Parameters>
+                <TimeoutSeconds>300</TimeoutSeconds>
+              </ProbeAction>
+            </MemberModules>
+            <Composition>
+              <Node ID="PSDiscovery">
+                <Node ID="ShellCommand" />
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.Discovery.Data</OutputType>
+      </DataSourceModuleType>
+       
+        <!-- Main Linux Oracle Listener Discovery-->
+        <DataSourceModuleType ID="Oracle.Linux.Discover.Listener.DS" Accessibility="Internal" Batching="false">
+        <Configuration>
+          <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          <xsd:element minOccurs="0" name="ExcludeListner" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+        </Configuration>
+        <OverrideableParameters>
+          <OverrideableParameter ID="Interval" Selector="$Config/Interval$" ParameterType="int" />
+        </OverrideableParameters>
+        <ModuleImplementation Isolation="Any">
+          <Composite>
+            <MemberModules>
+              <DataSource ID="ShellCommand" TypeID="Oracle.DataSource.ShellCommandDiscovery">
+                <Interval>$Config/Interval$</Interval>
+                <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                <ShellCommand>grep -v '^#' '/etc/oratab' |grep / | paste -sd "," -;ps -ef|grep LISTENER | grep -v grep;</ShellCommand>
+              </DataSource>
+              <ProbeAction ID="PSDiscovery" TypeID="Windows!Microsoft.Windows.PowerShellDiscoveryProbe">
+                <ScriptName>DiscoverOracleLinuxListener.ps1</ScriptName>
+                <ScriptBody>
+                  param ([string] $SourceID,[string]$ManagedEntityID,[string]$PrincipalName,[string]$Output)
+                  $api = New-Object -comObject 'Mom.ScriptAPI'
+                  $api.LogScriptEvent("DiscoverOracleLinuxListener.ps1",11,0,"$PrincipalName `n$Oratab")
+                  $discoveryData = $api.CreateDiscoveryData(0, $SourceID, $ManagedEntityID)
+                  
+                  try
+                    {
+                      $ScriptLines = $Output.split("`n")
+                      $orapath = $ScriptLines[0].split(",")[0].split(":")[1]
+                      $listener = $ScriptLines[1]
+                      $listener = ($listener -split ' +')
+                      $listenerUser = $listener[0] -replace '[^\p{L}\p{Nd}/(/}/_ ]', ''
+                      $listenerPath = $listener[7..$listener.Count] -join " " -replace '[^\p{L}\p{Nd}/(/}/_ ]', ''
+
+                      $oInst = $discoveryData.CreateClassInstance("$MPElement[Name='Oracle.Linux.Listener']$")
+                      $oInst.AddProperty("$MPElement[Name='MUL!Microsoft.Unix.Computer']/PrincipalName$", $PrincipalName)
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Listener']/ListenerPath$", $ListenerPath)
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Listener']/ListenerUser$", $ListenerUser)
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Listener']/ListenerOraPath$", $orapath)
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Listener']/ListenerName$", "LISTENER")
+                      $oInst.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$","LISTENER")
+                      $discoveryData.AddInstance($oInst)
+                      $api.LogScriptEvent("DiscoverOracleLinuxListener.ps1",10,0,"Oracle Linux Listener Discovery Finished on Server $PrincipalName.`n$Oratab")
+                      $discoveryData
+                    }
+                  catch
+                    {
+                      $api.LogScriptEvent("DiscoverOracleLinuxListener.ps1",17,1,$Error[0])
+                    }
+                </ScriptBody>
+                <Parameters>
+                  <Parameter>
+                    <Name>SourceID</Name>
+                    <Value>$MPElement$</Value>
+                  </Parameter>
+                  <Parameter>
+                    <Name>ManagedEntityID</Name>
+                    <Value>$Target/Id$</Value>
+                  </Parameter>
+                  <Parameter>
+                    <Name>PrincipalName</Name>
+                    <Value>$Config/TargetSystem$</Value>
+                  </Parameter>
+                  <Parameter>
+                    <Name>Output</Name>
+                    <Value>$Data///*[local-name()="StdOut"]$</Value>
+                  </Parameter>
+                </Parameters>
+                <TimeoutSeconds>300</TimeoutSeconds>
+              </ProbeAction>
+            </MemberModules>
+            <Composition>
+              <Node ID="PSDiscovery">
+                <Node ID="ShellCommand" />
+              </Node>
+            </Composition>
+          </Composite>
+        </ModuleImplementation>
+        <OutputType>System!System.Discovery.Data</OutputType>
+      </DataSourceModuleType>
+              
+        <!-- Main Query Data Source for Discovery !Dont Change it!-->
+        <DataSourceModuleType ID="Oracle.Linux.Library.DataSource.Query.Discovery" Accessibility="Public" Batching="false">
+          <Configuration>
+            <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleHome" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleSID" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="Query" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          </Configuration>
+          <OverrideableParameters>
+            <OverrideableParameter ID="Interval" Selector="$Config/Interval$" ParameterType="int" />
+          </OverrideableParameters>
+          <ModuleImplementation Isolation="Any">
+            <Composite>
+              <MemberModules>
+                <DataSource ID="Scheduler" TypeID="System!System.Discovery.Scheduler">
+                  <Scheduler>
+                    <SimpleReccuringSchedule>
+                      <Interval>$Config/Interval$</Interval>
+                      <SyncTime />
+                    </SimpleReccuringSchedule>
+                    <ExcludeDates />
+                  </Scheduler>
+                </DataSource>
+                <ProbeAction ID="QueryProbe" TypeID="Oracle.Linux.Library.ProbeAction.Query">
+                  <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                  <CommandTimeout>120</CommandTimeout>
+                  <OracleHome>$Config/OracleHome$</OracleHome>
+                  <OracleSID>$Config/OracleSID$</OracleSID>
+                  <Query>$Config/Query$</Query>
+                </ProbeAction>
+              </MemberModules>
+              <Composition>
+                <Node ID="QueryProbe">
+                  <Node ID="Scheduler" />
+                </Node>
+              </Composition>
+            </Composite>
+          </ModuleImplementation>
+          <OutputType>MSWL!Microsoft.SystemCenter.WSManagement.WSManData</OutputType>
+        </DataSourceModuleType>
+        
+        <!-- Oracle - Linux - Instance - Alert Log Discovery DS-->
+        <DataSourceModuleType ID="Oracle.Linux.Monitoring.DataSource.Discover.AlertLogs" Accessibility="Internal" Batching="false">
+          <Configuration>
+            <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleHome" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="InstanceName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="0" name="ExcludeAlertLogs" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          </Configuration>
+          <OverrideableParameters>
+            <OverrideableParameter ID="Interval" Selector="$Config/Interval$" ParameterType="int" />
+          </OverrideableParameters>
+          <ModuleImplementation Isolation="Any">
+            <Composite>
+              <MemberModules>
+                <DataSource ID="Query" TypeID="Oracle.Linux.Library.DataSource.Query.Discovery">
+                  <Interval>$Config/Interval$</Interval>
+                  <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                  <OracleHome>$Config/OracleHome$</OracleHome>
+                  <OracleSID>$Config/InstanceName$</OracleSID>
+                  <Query>show parameter dump;</Query>
+                </DataSource>
+                <ProbeAction ID="PSDiscovery" TypeID="Windows!Microsoft.Windows.PowerShellDiscoveryProbe">
+                  <ScriptName>DiscoverOracleLinuxInstanceAlertLogs.ps1</ScriptName>
+                  <ScriptBody>
+                    param ([string]$ManagedEntityID,[string]$SourceID,[string] $QueryOut,[string]$PrincipalName,[string]$OracleInstance)
+
+                    $api = New-Object -comObject 'Mom.ScriptAPI'
+                    $discoveryData = $api.CreateDiscoveryData(0, $SourceID, $ManagedEntityID)
+                    
+                    if($queryout -match 'error')
+                    {
+                      $api.LogScriptEvent("Oracle_Linux_Instance_AlertLog_Discovery.ps1",17,0,"Discovery Failed on server $PrincipalName and Instance $OracleInstance there was a problem in the output:`n$queryout")
+                    }
+                    else
+                    {
+                      try{
+                      $background_core_dump = $QueryOut.Split(',')[2].Split("`n")[0]
+                      $background_dump_dest = $QueryOut.Split(',')[4].Split("`n")[0]
+                      $core_dump_dest = $QueryOut.Split(',')[6].Split("`n")[0]
+                      $max_dump_file_size = $QueryOut.Split(',')[8].Split("`n")[0]
+                      $shadow_core_dump = $QueryOut.Split(',')[10].Split("`n")[0]
+                      $user_dump_dest = $QueryOut.Split(',')[12].Split("`n")[0]
+
+                      $oInst = $discoveryData.CreateClassInstance("$MPElement[Name='Oracle.Linux.Instance.AlertLog']$")
+                      $oInst.AddProperty("$MPElement[Name='MUL!Microsoft.Unix.Computer']/PrincipalName$", $PrincipalName)
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance']/InstanceName$", $OracleInstance)
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.AlertLog']/background_core_dump$", "$background_core_dump")
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.AlertLog']/background_dump_dest$", "$background_dump_dest")
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.AlertLog']/core_dump_dest$", "$core_dump_dest")
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.AlertLog']/max_dump_file_size$", "$max_dump_file_size")
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.AlertLog']/shadow_core_dump$", "$shadow_core_dump")
+                      $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.AlertLog']/user_dump_dest$", "$user_dump_dest")
+                      $oInst.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$","Alert Log")
+                      $discoveryData.AddInstance($oInst)
+                      $api.LogScriptEvent("Oracle_Linux_Instance_AlertLogs_Discovery.ps1",10,0,"Oracle Linux Instance AlertLogs Discovery Finished on Server $PrincipalName.")
+                      $discoveryData
+                      }
+                      catch
+                      {
+                      $message = "Discovery Failed on server $PrincipalName with the next Error message:`n" + $error[0] + "`nOracle Output is:`n$QueryOut"
+                      $api.LogScriptEvent("Oracle_Linux_Instance_AlertLog_Discovery.ps1",17,1,$message)
+                      }
+                  }
+                  </ScriptBody>
+                  <Parameters>
+                    <Parameter>
+                      <Name>QueryOut</Name>
+                      <Value>$Data///*[local-name()="StdOut"]$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>SourceID</Name>
+                      <Value>$MPElement$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>ManagedEntityID</Name>
+                      <Value>$Target/Id$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>PrincipalName</Name>
+                      <Value>$Config/TargetSystem$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>OracleInstance</Name>
+                      <Value>$Config/InstanceName$</Value>
+                    </Parameter>
+                  </Parameters>
+                  <TimeoutSeconds>300</TimeoutSeconds>
+                </ProbeAction>
+                <ConditionDetection ID="ValueFilter" TypeID="System!System.ExpressionFilter">
+                  <Expression>
+                    <RegExExpression>
+                          <ValueExpression>
+                            <Value>$Config/InstanceName$</Value>
+                          </ValueExpression>
+                          <Operator>MatchesRegularExpression</Operator>
+                          <Pattern>^.+</Pattern>
+                        </RegExExpression>
+                      </Expression>
+                </ConditionDetection>
+              </MemberModules>
+              <Composition>
+                <Node ID="PSDiscovery">
+                  <Node ID="ValueFilter">
+                    <Node ID="Query" />
+                  </Node>
+                </Node>
+              </Composition>
+            </Composite>
+          </ModuleImplementation>
+          <OutputType>System!System.Discovery.Data</OutputType>
+        </DataSourceModuleType>
+
+        <!-- Oracle - Linux - Instance - TableSpace Discovery DS-->
+        <DataSourceModuleType ID="Oracle.Linux.Monitoring.DataSource.Discover.TableSpace" Accessibility="Internal" Batching="false">
+          <Configuration>
+            <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleHome" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="InstanceName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="0" name="ExcludeTableSpaces" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          </Configuration>
+          <OverrideableParameters>
+            <OverrideableParameter ID="Interval" Selector="$Config/Interval$" ParameterType="int" />
+          </OverrideableParameters>
+          <ModuleImplementation Isolation="Any">
+            <Composite>
+              <MemberModules>
+                <DataSource ID="Query" TypeID="Oracle.Linux.Library.DataSource.Query.Discovery">
+                  <Interval>$Config/Interval$</Interval>
+                  <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                  <OracleHome>$Config/OracleHome$</OracleHome>
+                  <OracleSID>$Config/InstanceName$</OracleSID>
+                  <Query>SELECT CONCAT(CONCAT(CONCAT('\''value:'\'',TABLESPACE_NAME),'\'':'\''),ROUND(SUM (MAXBYTES/1048576))) AS COL001 FROM DBA_DATA_FILES GROUP BY TABLESPACE_NAME;</Query>
+                </DataSource>
+                <ProbeAction ID="PSDiscovery" TypeID="Windows!Microsoft.Windows.PowerShellDiscoveryProbe">
+                  <ScriptName>DiscoverOracleLinuxInstanceTableSpace.ps1</ScriptName>
+                  <ScriptBody>
+                    param ([string]$ManagedEntityID,[string]$SourceID,[string] $QueryOut,[string]$PrincipalName,[string]$OracleInstance)
+                    $api = New-Object -comObject 'Mom.ScriptAPI'
+                    $discoveryData = $api.CreateDiscoveryData(0, $SourceID, $ManagedEntityID)
+                    $tableCount =0
+                    if($queryout -match 'error')
+                      {
+                        $api.LogScriptEvent("Oracle_Linux_Instance_TableSpace_Discovery.ps1",17,0,"Discovery Failed on server $PrincipalName and Instance $OracleInstance with output:`n$queryout")
+                      }
+                    else
+                      {                                    
+                        foreach($row in $QueryOut -Split "value:")
+                        {
+                        if($row.IndexOf(":") -gt 0)
+                          {
+                          try
+                              {
+                                $row = $row.Replace(" ","").Replace("'","")
+                                $tablespace = $row.Split(":")[0]
+                                $size = $row.Split(":")[1]
+                                $oInst = $discoveryData.CreateClassInstance("$MPElement[Name='Oracle.Linux.Instance.TableSpace']$")
+                                $oInst.AddProperty("$MPElement[Name='MUL!Microsoft.Unix.Computer']/PrincipalName$", $PrincipalName)
+                                $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance']/InstanceName$", $OracleInstance)
+                                $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.TableSpace']/TableSpaceName$", $tablespace)
+                                $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.TableSpace']/Size$", $size)
+                                $oInst.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$",$tablespace)
+                                $discoveryData.AddInstance($oInst)
+                                $tableCount++
+                              }
+                            catch
+                              {
+                                $errormsg = "Problem with Row:" + $row + "Error: " + $error[0]
+                                $api.LogScriptEvent("Oracle_Linux_Instance_TableSpace_Discovery.ps1",17,0,$errormsg)
+                              }
+                          }
+                        }
+                        $api.LogScriptEvent("Oracle_Linux_Instance_TableSpace_Discovery.ps1",10,0,"Oracle Linux Instance TableSpace Discovery Finished on Server $PrincipalName with $tableCount Tables Discovred.")
+                        $discoveryData
+                      }
+                  </ScriptBody>
+                  <Parameters>
+                    <Parameter>
+                      <Name>QueryOut</Name>
+                      <Value>$Data///*[local-name()="StdOut"]$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>SourceID</Name>
+                      <Value>$MPElement$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>ManagedEntityID</Name>
+                      <Value>$Target/Id$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>PrincipalName</Name>
+                      <Value>$Config/TargetSystem$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>OracleInstance</Name>
+                      <Value>$Config/InstanceName$</Value>
+                    </Parameter>
+                  </Parameters>
+                  <TimeoutSeconds>300</TimeoutSeconds>
+                </ProbeAction>
+                <ConditionDetection ID="ValueFilter" TypeID="System!System.ExpressionFilter">
+                  <Expression>
+                    <RegExExpression>
+                      <ValueExpression>
+                        <Value>$Config/InstanceName$</Value>
+                      </ValueExpression>
+                      <Operator>MatchesRegularExpression</Operator>
+                      <Pattern>^.+</Pattern>
+                    </RegExExpression>
+                  </Expression>
+                </ConditionDetection>
+              </MemberModules>
+              <Composition>
+                <Node ID="PSDiscovery">
+                  <Node ID="ValueFilter">
+                    <Node ID="Query" />
+                  </Node>
+                </Node>
+              </Composition>
+            </Composite>
+          </ModuleImplementation>
+          <OutputType>System!System.Discovery.Data</OutputType>
+        </DataSourceModuleType>
+
+        <!-- Oracle - Linux - Instance - Schema Discovery DS-->
+        <DataSourceModuleType ID="Oracle.Linux.Monitoring.DataSource.Discover.Schema" Accessibility="Internal" Batching="false">
+          <Configuration>
+            <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleHome" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="InstanceName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="0" name="ExcludeSchema" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          </Configuration>
+          <OverrideableParameters>
+            <OverrideableParameter ID="Interval" Selector="$Config/Interval$" ParameterType="int" />
+          </OverrideableParameters>
+          <ModuleImplementation Isolation="Any">
+            <Composite>
+              <MemberModules>
+                <DataSource ID="Query" TypeID="Oracle.Linux.Library.DataSource.Query.Discovery">
+                  <Interval>$Config/Interval$</Interval>
+                  <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                  <OracleHome>$Config/OracleHome$</OracleHome>
+                  <OracleSID>$Config/InstanceName$</OracleSID>
+                  <Query>Select username from dba_users;</Query>
+                </DataSource>
+                <ProbeAction ID="PSDiscovery" TypeID="Windows!Microsoft.Windows.PowerShellDiscoveryProbe">
+                  <ScriptName>DiscoverOracleLinuxInstanceSchema.ps1</ScriptName>
+                  <ScriptBody>
+                    param ([string]$ManagedEntityID,[string]$SourceID,[string] $QueryOut,[string]$PrincipalName,[string]$OracleInstance)
+                    $api = New-Object -comObject 'Mom.ScriptAPI'
+                    $discoveryData = $api.CreateDiscoveryData(0, $SourceID, $ManagedEntityID)
+                    $schemaCount = 0
+                    if($queryout -match 'error')
+                      {
+                        $api.LogScriptEvent("Oracle_Linux_Instance_Schema_Discovery.ps1",17,0,"On server $PrincipalName and Instance $OracleInstance output was:`n$queryout")
+                      }
+                    else
+                      {
+                        $QueryOut = $QueryOut.Split("`n")| select -Unique | sort
+                        foreach($row in $QueryOut.split(' '))
+                          {
+                            try
+                            {
+                            $row = $row -replace '[^\p{L}\p{Nd}/(/}/_ ]', ''
+                            if($row.length -gt 1)
+                              {
+                                $oInst = $discoveryData.CreateClassInstance("$MPElement[Name='Oracle.Linux.Instance.Schema']$")
+                                $oInst.AddProperty("$MPElement[Name='MUL!Microsoft.Unix.Computer']/PrincipalName$", $PrincipalName)
+                                $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance']/InstanceName$", $OracleInstance)
+                                $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.Schema']/SchemaName$", $row)
+                                $oInst.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$",$row)
+                                $discoveryData.AddInstance($oInst)
+                                $schemaCount++
+                              }
+                            }
+                            catch
+                            {
+                                $errormsg = "Problem with Row:" + $row + "Error: " + $error[0]
+                                $api.LogScriptEvent("Oracle_Linux_Instance_Schema_Discovery.ps1",17,0,$errormsg)
+                            }
+                          }
+                        $api.LogScriptEvent("Oracle_Linux_Instance_Schema_Discovery.ps1",10,0,"Oracle Linux Instance Schema Discovery Finished on Server $PrincipalName with $schemaCount Schems Discovred.`n$QueryOut")
+                        $discoveryData
+                      }
+                  </ScriptBody>
+                  <Parameters>
+                    <Parameter>
+                      <Name>QueryOut</Name>
+                      <Value>$Data///*[local-name()="StdOut"]$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>SourceID</Name>
+                      <Value>$MPElement$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>ManagedEntityID</Name>
+                      <Value>$Target/Id$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>PrincipalName</Name>
+                      <Value>$Config/TargetSystem$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>OracleInstance</Name>
+                      <Value>$Config/InstanceName$</Value>
+                    </Parameter>
+                  </Parameters>
+                  <TimeoutSeconds>300</TimeoutSeconds>
+                </ProbeAction>
+                <ConditionDetection ID="ValueFilter" TypeID="System!System.ExpressionFilter">
+                  <Expression>
+                    <RegExExpression>
+                      <ValueExpression>
+                        <Value>$Config/InstanceName$</Value>
+                      </ValueExpression>
+                      <Operator>MatchesRegularExpression</Operator>
+                      <Pattern>^.+</Pattern>
+                    </RegExExpression>
+                  </Expression>
+                </ConditionDetection>
+              </MemberModules>
+              <Composition>
+                <Node ID="PSDiscovery">
+                  <Node ID="ValueFilter">
+                    <Node ID="Query" />
+                  </Node>
+                </Node>
+              </Composition>
+            </Composite>
+          </ModuleImplementation>
+          <OutputType>System!System.Discovery.Data</OutputType>
+        </DataSourceModuleType>
+
+         <!-- Oracle - Linux - Instance - Schema - Jobs Discovery DS-->
+        <DataSourceModuleType ID="Oracle.Linux.Monitoring.DataSource.Discover.Schema.Jobs" Accessibility="Internal" Batching="false">
+          <Configuration>
+            <xsd:element minOccurs="1" name="Interval" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleHome" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="InstanceName" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          </Configuration>
+          <OverrideableParameters>
+            <OverrideableParameter ID="Interval" Selector="$Config/Interval$" ParameterType="int" />
+          </OverrideableParameters>
+          <ModuleImplementation Isolation="Any">
+            <Composite>
+              <MemberModules>
+                <DataSource ID="Query" TypeID="Oracle.Linux.Library.DataSource.Query.Discovery">
+                  <Interval>$Config/Interval$</Interval>
+                  <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                  <OracleHome>$Config/OracleHome$</OracleHome>
+                  <OracleSID>$Config/InstanceName$</OracleSID>
+                  <Query>select 'value:' || owner||','||job_name||','||comments from dba_scheduler_jobs;</Query>
+                </DataSource>
+                <ProbeAction ID="PSDiscovery" TypeID="Windows!Microsoft.Windows.PowerShellDiscoveryProbe">
+                  <ScriptName>DiscoverOracleLinuxInstanceSchemaJobs.ps1</ScriptName>
+                  <ScriptBody>
+                    param ([string]$ManagedEntityID,[string]$SourceID,[string] $QueryOut,[string]$PrincipalName,[string]$OracleInstance)
+                    
+                    $jobcount = 0
+                    $api = New-Object -comObject 'Mom.ScriptAPI'
+                    $discoveryData = $api.CreateDiscoveryData(0, $SourceID, $ManagedEntityID)
+                    
+                    if($queryout -match 'error')
+                      {
+                        $api.LogScriptEvent("Oracle_Linux_Instance_Schema_Jobs_Discovery.ps1",17,0,"On server $PrincipalName and Instance $OracleInstance output was:`n$queryout")
+                      }
+                    else
+                      {
+                        foreach($row in $QueryOut -Split "value:")
+                          {
+                            try
+                              {
+                                $SchemaName = $row.split(",")[0].trim()
+                                $JobName = $row.split(",")[1].trim()
+                                $Comment = $row.split(",")[2]
+                                if($SchemaName -ne "" -and $JobName -ne "" -and $JobName -ne $null -and $SchemaName -ne $null)
+                                {
+                                  $oInst = $discoveryData.CreateClassInstance("$MPElement[Name='Oracle.Linux.Instance.Schema.Job']$")
+                                  $oInst.AddProperty("$MPElement[Name='MUL!Microsoft.Unix.Computer']/PrincipalName$", $PrincipalName)
+                                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance']/InstanceName$", $OracleInstance)
+                                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.Schema']/SchemaName$", $SchemaName)
+                                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.Schema.Job']/JobName$", $JobName)
+                                  $oInst.AddProperty("$MPElement[Name='Oracle.Linux.Instance.Schema.Job']/Comment$", $Comment)
+                                  $oInst.AddProperty("$MPElement[Name='System!System.Entity']/DisplayName$",$JobName)
+                                  $discoveryData.AddInstance($oInst)
+                                  $jobcount++
+                                }
+                              }
+                          catch
+                            {
+                              if($row -ne '' -and $row -ne $null)
+                                {
+                                  $errortext = "problem with line:" + $row + "`nError code:`n" + $error[0]
+                                  $api.LogScriptEvent("Oracle_Linux_Instance_Schema_Jobs_Discovery.ps1",17,0,$errortext)
+                                }
+                            }
+                          }
+                        $api.LogScriptEvent("Oracle_Linux_Instance_Schema_jobs_Discovery.ps1",10,0,"Oracle Linux Instance Schema Jobs Discovery Finished on Server $PrincipalName with $jobcount Schems jobs Discovred.")
+                        $discoveryData
+                      }
+                  </ScriptBody>
+                  <Parameters>
+                    <Parameter>
+                      <Name>QueryOut</Name>
+                      <Value>$Data///*[local-name()="StdOut"]$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>SourceID</Name>
+                      <Value>$MPElement$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>ManagedEntityID</Name>
+                      <Value>$Target/Id$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>PrincipalName</Name>
+                      <Value>$Config/TargetSystem$</Value>
+                    </Parameter>
+                    <Parameter>
+                      <Name>OracleInstance</Name>
+                      <Value>$Config/InstanceName$</Value>
+                    </Parameter>
+                  </Parameters>
+                  <TimeoutSeconds>300</TimeoutSeconds>
+                </ProbeAction>
+                <ConditionDetection ID="ValueFilter" TypeID="System!System.ExpressionFilter">
+                  <Expression>
+                    <RegExExpression>
+                      <ValueExpression>
+                        <Value>$Config/InstanceName$</Value>
+                      </ValueExpression>
+                      <Operator>MatchesRegularExpression</Operator>
+                      <Pattern>^.+</Pattern>
+                    </RegExExpression>
+                  </Expression>
+                </ConditionDetection>
+              </MemberModules>
+              <Composition>
+                <Node ID="PSDiscovery">
+                  <Node ID="ValueFilter">
+                    <Node ID="Query" />
+                  </Node>
+                </Node>
+              </Composition>
+            </Composite>
+          </ModuleImplementation>
+          <OutputType>System!System.Discovery.Data</OutputType>
+        </DataSourceModuleType>               
+            
+        <!-- Main Oracle Query Probe !!!!!!!DO NOT CHNAGE!!!!!!-->
+        <!-- 
+        test:
+        export ORACLE_SID="soa";
+        export ORACLE_HOME="/oracle/app/product/12.1.0/dbhome_1";
+        sqllogin="scom/scom";
+        printf 'SET HEADING OFF;\nSET COLSEP ",";\n SET TRIM on;\nSET WRAP off;\nset feedback off;\n***QUERY***' | $ORACLE_HOME/bin/sqlplus -s $sqllogin
+        -->
+        <ProbeActionModuleType ID="Oracle.Linux.Library.ProbeAction.Query" Accessibility="Public" Batching="false" PassThrough="false">
+          <Configuration>
+            <xsd:element minOccurs="1" name="TargetSystem" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="CommandTimeout" type="xsd:integer" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleHome" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="OracleSID" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+            <xsd:element minOccurs="1" name="Query" type="xsd:string" xmlns:xsd="http://www.w3.org/2001/XMLSchema" />
+          </Configuration>
+          <ModuleImplementation Isolation="Any">
+            <Composite>
+              <MemberModules>
+                <ProbeAction ID="ShellCmd" TypeID="MUSL!Microsoft.Unix.ShellCommand.ProbeAction">
+                  <TargetSystem>$Config/TargetSystem$</TargetSystem>
+                  <UserName>$RunAs[Name="MUL!Microsoft.Unix.ActionAccount"]/UserName$</UserName>
+                  <Password>$RunAs[Name="MUL!Microsoft.Unix.ActionAccount"]/Password$</Password>
+                  <ShellCommand>export ORACLE_SID=$Config/OracleSID$;export ORACLE_HOME=$Config/OracleHome$;export ORACLEPORT=$(cat $ORACLE_HOME/network/admin/listener.ora | grep PORT);sqllogin='$RunAs[Name="Oracle.Linux.Query.RunAsProfile"]/UserName$/$RunAs[Name="Oracle.Linux.Query.RunAsProfile"]/Password$';sqllogin+=\"@(DESCRIPTION=$ORACLEPORT(CONNECT_DATA=(SERVICE_NAME=$Config/OracleSID$)))\";printf \"SET HEADING OFF;\\nSET COLSEP ',';\\n SET TRIM on;\\nSET WRAP off;\\nset feedback off;\\n$Config/Query$\" | $ORACLE_HOME/bin/sqlplus -s \"$sqllogin\"</ShellCommand>
+                  <TimeOut>$Config/CommandTimeout$</TimeOut>
+                  <TimeOutInMS>120000</TimeOutInMS>
+                </ProbeAction>
+                <ConditionDetection ID="SIDFilter" TypeID="System!System.ExpressionFilter">
+                  <Expression>
+                    <RegExExpression>
+                      <ValueExpression>
+                        <Value>$Config/OracleSID$</Value>
+                      </ValueExpression>
+                      <Operator>MatchesRegularExpression</Operator>
+                      <Pattern>^.+</Pattern>
+                    </RegExExpression>
+                  </Expression>
+                </ConditionDetection>
+              </MemberModules>
+              <Composition>
+                <Node ID="ShellCmd">
+                  <Node ID="SIDFilter" />
+                </Node>
+              </Composition>
+            </Composite>
+          </ModuleImplementation>
+          <OutputType>MSWL!Microsoft.SystemCenter.WSManagement.WSManData</OutputType>
+          <InputType>System!System.BaseData</InputType>
+        </ProbeActionModuleType>                      
+    </ModuleTypes>
+  </TypeDefinitions>
+    
+  <Monitoring>
+    <Discoveries>
+      <!-- Oracle Linux Server & Instance Discovery 300-->
+      <Discovery ID="Oracle.Linux.Server.and.Instance.Discovery" Enabled="true" Target="MUL!Microsoft.Unix.Computer" ConfirmDelivery="true" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Oracle.Linux.Server" />
+          <DiscoveryClass TypeID="Oracle.Linux.Instance" />
+        </DiscoveryTypes>
+        <DataSource ID="DS1" TypeID="Oracle.Linux.Discover.Server.DS">
+          <Interval>300</Interval>
+          <TargetSystem>$Target/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+        </DataSource>
+      </Discovery>  
+      
+      <!-- Oracle Linux Server & Listner Discovery 300 -->
+      <Discovery ID="Oracle.Linux.Listener.Discovery" Enabled="true" Target="Oracle.Linux.Server" ConfirmDelivery="true" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Oracle.Linux.Listener" />
+        </DiscoveryTypes>
+        <DataSource ID="DS1" TypeID="Oracle.Linux.Discover.Listener.DS">
+          <Interval>300</Interval>
+          <TargetSystem>$Target/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+        </DataSource>
+      </Discovery>  
+      
+      <!-- Oracle Linux Instance Alert Log Discovery 300 -->
+      <Discovery ID="Oracle.Linux.Instance.AlertLogs.Discovery" Enabled="true" Target="Oracle.Linux.Instance" ConfirmDelivery="true" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Oracle.Linux.Instance.AlertLog" />
+          <DiscoveryRelationship TypeID="Oracle.Relationship.Linux.Instance.AlertLog" />
+        </DiscoveryTypes>
+        <DataSource ID="DS1" TypeID="Oracle.Linux.Monitoring.DataSource.Discover.AlertLogs">
+          <Interval>300</Interval>
+          <TargetSystem>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+          <OracleHome>$Target/Property[Type="Oracle.Linux.Instance"]/OracleHome$</OracleHome>
+          <InstanceName>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</InstanceName>
+        </DataSource>
+      </Discovery>
+
+      <!-- Oracle Linux Instance TableSpace Discovery 300-->
+      <Discovery ID="Oracle.Linux.Instance.TableSpace.Discovery" Enabled="true" Target="Oracle.Linux.Instance" ConfirmDelivery="true" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Oracle.Linux.Instance.TableSpace" />
+        </DiscoveryTypes>
+        <DataSource ID="DS1" TypeID="Oracle.Linux.Monitoring.DataSource.Discover.TableSpace">
+          <Interval>300</Interval>
+          <TargetSystem>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+          <OracleHome>$Target/Property[Type="Oracle.Linux.Instance"]/OracleHome$</OracleHome>
+          <InstanceName>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</InstanceName>
+        </DataSource>
+      </Discovery>
+
+        <!-- Oracle Linux Instance Schema Discovery 300-->
+      <Discovery ID="Oracle.Linux.Instance.Schema.Discovery" Enabled="true" Target="Oracle.Linux.Instance" ConfirmDelivery="true" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Oracle.Linux.Instance.Schema" />
+        </DiscoveryTypes>
+        <DataSource ID="DS1" TypeID="Oracle.Linux.Monitoring.DataSource.Discover.Schema">
+          <Interval>300</Interval>
+          <TargetSystem>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+          <OracleHome>$Target/Property[Type="Oracle.Linux.Instance"]/OracleHome$</OracleHome>
+          <InstanceName>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</InstanceName>
+        </DataSource>
+      </Discovery>
+
+        <!-- Oracle Linux Instance Schema Jobs Discovery  120-->
+      <Discovery ID="Oracle.Linux.Instance.Schema.Jobs.Discovery" Enabled="true" Target="Oracle.Linux.Instance" ConfirmDelivery="true" Remotable="true" Priority="Normal">
+        <Category>Discovery</Category>
+        <DiscoveryTypes>
+          <DiscoveryClass TypeID="Oracle.Linux.Instance.Schema.Job" />
+        </DiscoveryTypes>
+        <DataSource ID="DS1" TypeID="Oracle.Linux.Monitoring.DataSource.Discover.Schema.Jobs">
+          <Interval>300</Interval>
+          <TargetSystem>$Target/Host/Host/Property[Type="MUL!Microsoft.Unix.Computer"]/PrincipalName$</TargetSystem>
+          <OracleHome>$Target/Property[Type="Oracle.Linux.Instance"]/OracleHome$</OracleHome>
+          <InstanceName>$Target/Property[Type="Oracle.Linux.Instance"]/InstanceName$</InstanceName>
+        </DataSource>
+      </Discovery>
+    </Discoveries>
+    <Overrides>
+      <SecureReferenceOverride ID="SecureOverrideeeec771e_051f_1e32_29c1_655d642379c3" Context="System!System.Entity" Enforced="false" SecureReference="Oracle.Linux.Query.RunAsProfile">
+        <Value>003ACA5A148A2D26721C4E66788F4B50EEDBE7A5F400000000000000000000000000000000000000</Value>
+      </SecureReferenceOverride>
+    </Overrides>
+  </Monitoring>
+
+  <LanguagePacks>
+    <LanguagePack ID="ENU" IsDefault="true">
+      <DisplayStrings>
+        <DisplayString ElementID="Oracle.Linux.Server.and.Instance.Discovery">
+          <Name>Oracle Linux Server and Instance Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.AlertLogs.Discovery">
+          <Name>Oracle Linux Instance AlertLogs Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.TableSpace.Discovery">
+          <Name>Oracle Linux Instance TableSpace Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Instance.Schema.Discovery">
+          <Name>Oracle Linux Instance Schema Discovery</Name>
+        </DisplayString>
+          <DisplayString ElementID="Oracle.Linux.Instance.Schema.Jobs.Discovery">
+          <Name>Oracle Linux Instance Schema Jobs Discovery</Name>
+        </DisplayString>
+        <DisplayString ElementID="Oracle.Linux.Listener.Discovery">
+          <Name>Oracle Linux Listener Discovery</Name>
+        </DisplayString>
+      </DisplayStrings>
+    </LanguagePack>
+  </LanguagePacks>
+</ManagementPackFragment>
